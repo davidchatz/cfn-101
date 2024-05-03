@@ -199,6 +199,22 @@ Resources:
 With resources like subnets and route tables there is potential for a lot of repetition.
 YAML does not natively support programming constructs like branches and loops, but CloudFormation has ways to do this ... with limitations.
 
+The loop is defined as a resource with a variable and a list to iterate:
+
+```yaml
+  Fn::ForEach::MyLoop:
+    - Id
+    - [ Apple, Banana, Orange ]
+    - ${Id}Item:
+        Type: AWS::EC2::Instance
+        Properties:
+            ImageId: !Ref Ami
+            ...
+            Tags:
+            - Key: Name
+                Value: !Sub "${AWS::StackName}-${Id}"
+```
+
 Scroll down through this blog and you will see an example using `Fn::ForEach` in templates for subnets, including
 - Adding the transform `Transform: AWS::LanguageExtensions`
 - Using lists in parameters
@@ -222,8 +238,19 @@ Resources:
 
 ## 8 Outputs and Exports
 
+Outputing resource identifiers is helpful to those who deployed a stack and to other stacks that depend on those resources.
+Outputs can also be exported so they can be referred to by any templates in the same region.
+Therefore, the name given to an export must be unique to the region.
+
+Add outputs and exports for the VPC and subnets, exporting the subnets identifiers as lists for the public, web and databases subnets.
+
+Resources:
+- [Outputs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html)
+- [Solution](solution/soln-08.yaml)
 
 ## 9 - Master Template
+
+
 
 
 ## 10 - Security Group and Conditions

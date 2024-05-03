@@ -40,7 +40,6 @@ Parameters:
     AllowedValues:
       - A
       - B
-      - C
     Default: A,B
 
 Mappings:
@@ -50,8 +49,6 @@ Mappings:
       Zone: 0
     B:
       Zone: 1
-    C:
-      Zone: 2
 
 Resources:
 
@@ -147,3 +144,25 @@ Resources:
               Fn::Sub: "${Tier}RouteTable"
             SubnetId: !Ref 
               Fn::Sub: "${Tier}${Zone}Subnet"
+
+Outputs:
+
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcId"
+
+  PublicSubnetIds:
+    Value: !Join [ ",", [ !Ref PublicASubnet, !Ref PublicBSubnet ] ]
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetIds"
+
+  AppSubnetIds:
+    Value: !Join [ ",", [ !Ref AppASubnet, !Ref AppBSubnet ] ]
+    Export:
+      Name: !Sub "${AWS::StackName}-AppSubnetIds"
+
+  DatabaseSubnetIds:
+    Value: !Join [ ",", [ !Ref DatabaseASubnet, !Ref DatabaseBSubnet ] ]
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseSubnetIds"

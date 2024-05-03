@@ -156,6 +156,15 @@ function _now()
     NOW=$(date -u +"%Y-%m-%dT%H:%M:%S")
 }
 
+function _outputs()
+{
+    _run aws cloudformation describe-stacks \
+        --region $REGION \
+        --stack-name $STACK \
+        --query 'Stacks[*].Outputs' \
+        --output table
+}
+
 function _create()
 {
     _header "Deploying $STACK"
@@ -173,6 +182,8 @@ function _create()
     _walk aws cloudformation wait stack-create-complete \
         --region $REGION \
         --stack-name $STACK
+
+    _outputs
 }
 
 function _update()
@@ -196,6 +207,7 @@ function _update()
             --region $REGION \
             --stack-name $STACK
 
+        _outputs
     done
 }
 
@@ -223,6 +235,8 @@ function _apply()
     _walk aws cloudformation wait stack-update-complete \
         --region $REGION \
         --stack-name $STACK
+
+    _outputs
 }
 
 function _delete()
@@ -242,7 +256,7 @@ function _delete()
 
 function _usage()
 {
-    echo "Usage: $0 <create|update|delete|all|##>"
+    echo "Usage: $0 <create|update|outputs|delete|all|##>"
     echo ""
     echo "       $0 ##      Update solution using template soln-##.yaml"
     exit 1
@@ -265,6 +279,10 @@ case $1 in
 
     delete)
         _delete
+        ;;
+
+    output)
+        _outputs
         ;;
 
     all)
