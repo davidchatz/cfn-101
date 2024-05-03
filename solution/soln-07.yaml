@@ -1,0 +1,149 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Writing your first cloudformation template
+
+Transform: AWS::LanguageExtensions
+
+Parameters:
+
+  VpcCidr:
+    Type: String
+    Default: 10.1.0.0/16
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+
+  PublicCidr:
+    Type: String
+    Default: 10.1.0.0/20
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(2[0-8]))$
+
+  AppCidr:
+    Type: String
+    Default: 10.1.16.0/20
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(2[0-8]))$
+
+  DatabaseCidr:
+    Type: String
+    Default: 10.1.32.0/20
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(2[0-8]))$
+
+  Tiers:
+    Type: CommaDelimitedList
+    AllowedValues:
+      - Public
+      - App
+      - Database
+    Default: Public,App,Database
+
+  Zones:
+    Type: CommaDelimitedList
+    AllowedValues:
+      - A
+      - B
+      - C
+    Default: A,B
+
+Mappings:
+
+  AZ:
+    A:
+      Zone: 0
+    B:
+      Zone: 1
+    C:
+      Zone: 2
+
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  Fn::ForEach::RouteTables:
+    - Tier
+    - !Ref Tiers
+    - ${Tier}RouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+          VpcId: !Ref VPC
+          Tags:
+            - Key: Name
+              Value: !Sub "${AWS::StackName}-${Tier}-rt"  
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  Fn::ForEach::CreatePublicSubnets:
+    - Zone
+    - !Ref Zones
+    - Public${Zone}Subnet:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !GetAZs ]
+          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !Cidr [ !Ref PublicCidr, 16, 8 ] ]
+          Tags:
+            - Key: Name
+              Value: !Sub "${AWS::StackName}-public-subnet-${Zone}"
+
+  Fn::ForEach::CreateAppSubnets:
+    - Zone
+    - !Ref Zones
+    - App${Zone}Subnet:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !GetAZs ]
+          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !Cidr [ !Ref AppCidr, 16, 8 ] ]
+          Tags:
+            - Key: Name
+              Value: !Sub "${AWS::StackName}-app-subnet-${Zone}"
+
+  Fn::ForEach::CreateDatabaseSubnets:
+    - Zone
+    - !Ref Zones
+    - Database${Zone}Subnet:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !GetAZs ]
+          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !Cidr [ !Ref DatabaseCidr, 16, 8 ] ]
+          Tags:
+            - Key: Name
+              Value: !Sub "${AWS::StackName}-database-subnet-${Zone}"
+
+  Fn::ForEach::AssocRouteTiers:
+    - Tier
+    - !Ref Tiers
+    - Fn::ForEach::AssocRouteZones:
+      - Zone
+      - !Ref Zones
+      - ${Tier}${Zone}SubnetRoute:
+          Type: AWS::EC2::SubnetRouteTableAssociation
+          Properties:
+            RouteTableId: !Ref
+              Fn::Sub: "${Tier}RouteTable"
+            SubnetId: !Ref 
+              Fn::Sub: "${Tier}${Zone}Subnet"
