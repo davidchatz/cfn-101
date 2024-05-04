@@ -1,6 +1,7 @@
 # CloudFormation 101
 
-A hands-on CloudFormation work that quickly dives into intermediate features of CloudFormation.
+A hands-on CloudFormation work that quickly dives into intermediate features of CloudFormation,
+assuming you are already familiar with AWS VPCs and YAML formating.
 
 ## 0 - Setup
 
@@ -26,6 +27,17 @@ CloudFormation templates start with
 - at least one resource
 - comments start with a `#`
 
+```yaml
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Incrementally building a cloudformation template
+
+Resources:
+
+  # Define your VPC resource here
+```
+
 Each resource will have one or more properties, some properties are mandatory, others are optional. Read this documentation for the properties of a [VPC](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc.html).
 
 You can then deploy with:
@@ -44,11 +56,16 @@ Resources:
 
 ## 2 - Update VPC
 
-Add a `Name` tag to the VPC in your `template.yaml`. But what name to give your VPC? Each CloudFormation stack must have a unique name, so using the name you gave your stack is often a good choice for at least part of your resource name. The stack name, and other details about your stack, can be used in your template using Psuedo Parameters:
+Add a `Name` tag to the VPC in your `template.yaml`. But what name to give your VPC?
+Each CloudFormation stack must have a unique name, so using the name you gave your stack is often a good choice for at least part of your resource name.
+The stack name, and other details about your stack, can be used in your template using Psuedo Parameters like `AWS::StackName`:
 
 ```yaml
+Key: Name
 Value: !Ref "AWS::StackName"
 ```
+
+`!Ref` is an intrinsic function built into CloudFormation for refering to parameters or other resources in your template.
 
 Update the template by running
 
@@ -60,6 +77,7 @@ aws cloudformation update-stack \
 
 Resources:
 - [CloudFormation Pseudo Parameters](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/pseudo-parameter-reference.html)
+- [!Ref](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-ref.html)
 - [CloudFormation Updates](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-direct.html)
 - [AWS::EC2::VPC](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc.html)
 - [AWS::EC2::VPC tag](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-vpc-tag.html)
@@ -67,11 +85,27 @@ Resources:
 
 ## 3 - Parameterise the VPC
 
-Improve template reusability by [parameterising](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html) rather than hard-coding configuration values. We can still provide useful defaults with these parameters, and also perform input validation. For our template, we can parameterise the VPC CIDR block.
+Improve template reusability by [parameterising](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html) rather than hard-coding configuration values. We can still provide useful defaults with these parameters, and also perform input validation. 
 
-When defining your parameter, set the default to a different CIDR range than you were using, for example use `10.1.0.0/16` rather than `10.0.0.0/16`. CloudFormation can change some configurations in place, but this is not one of them. So what will happen when you update?
+For example, we could provide a 6-digit cost centre to use for resources, instead of using `AWS::StackName`
+```yaml
+  CostCentre:
+    Type: String
+    Description: Allocate the stack resources to this cost centre
+    MinLength: 6
+    MaxLength: 6
+    AllowedPattern: ^([0-9]{6})$
+    ConstraintDescription: 6-digit cost centre code
+```
 
-For input validation we can specify a list of allow values, or a regex that the input should match. Just in case you don't know this off the top of your head, here is a regex for a CIDR block.
+For our template, we can parameterise the VPC CIDR block.
+
+When defining your parameter, set the default to a different CIDR range than you were using, for example use `10.1.0.0/16` rather than `10.0.0.0/16`.
+CloudFormation can change some configurations in place, but this is not one of them.
+So what will happen when you update? When you run the update, switch to the console and watch the events.
+
+For input validation we can specify a list of allowed values, or a regex that the input should match.
+Just in case you don't know this off the top of your head, here is a regex for a CIDR block:
 
 ```yaml
 Default: 10.1.0.0/16
@@ -244,8 +278,12 @@ Therefore, the name given to an export must be unique to the region.
 
 Add outputs and exports for the VPC and subnets, exporting the subnets identifiers as lists for the public, web and databases subnets.
 
+If you wanted to extract other properties from resources, you can use the `!GetAtt` intrinsic function.
+For example, review the [AWS::EC2::Subnet return values](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html#aws-resource-ec2-subnet-return-values) to see how `!GetAtt PublicASubnet.CidrBlock` will return a subnet CidrBlock.
+
 Resources:
 - [Outputs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html)
+- [Subnet Attributes](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html#aws-resource-ec2-subnet-return-values)
 - [Solution](solution/soln-08.yaml)
 
 ## 9 - Master Template

@@ -5,6 +5,7 @@ Description: Incrementally building a cloudformation template
 
 Resources:
 
+  # Create a VPC
   VPC:
     Type: AWS::EC2::VPC
     Properties:

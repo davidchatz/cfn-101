@@ -9,6 +9,7 @@ Parameters:
     Type: String
     Default: 10.1.0.0/16
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    Description: The CIDR block for the VPC
 
 Resources:
 
@@ -73,6 +74,7 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}-public-b"
 
+  # Associate public subnets with public route table
   PublicSubnetAAssoc:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -85,8 +87,7 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnetB
 
-  # App Tier
-  
+  # Define route table and subnets for application tier  
   AppRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -100,7 +101,9 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [ 0, !GetAZs ]
+      # Ensure application subnets have different blocks to other subnets
       CidrBlock: !Select [ 4, Fn::Cidr: [ !GetAtt VPC.CidrBlock, 20, 8 ]]
+      # Do not auto-assign public IPs to not-public subnets
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-app-a"
@@ -127,8 +130,7 @@ Resources:
       RouteTableId: !Ref AppRouteTable
       SubnetId: !Ref AppSubnetB
 
-  # Database Tier
-  
+  # Define route table and subnets for database tier 
   DatabaseRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
