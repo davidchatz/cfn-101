@@ -19,7 +19,7 @@ aws sts get-caller-identity
 
 ## 1 - Simplest template
 
-Create and deploy a simple VPC using CloudFormation by creating `template.yaml`, defining a VPC resource.
+Create and deploy a simple VPC using CloudFormation by creating `network.yaml`, defining a VPC resource.
 
 CloudFormation templates start with
 - a format version `AWSTemplateFormatVersion: "2010-09-09"`
@@ -43,10 +43,10 @@ Each resource will have one or more properties, some properties are mandatory, o
 You can then deploy with:
 
 ```bash
-STACK=cfn-demo
+STACK=cfn-network
 aws cloudformation create-stack \
     --stack-name $STACK \
-    --template-body file://template.yaml
+    --template-body file://network.yaml
 ```
 
 Resources:
@@ -56,7 +56,7 @@ Resources:
 
 ## 2 - Update VPC
 
-Add a `Name` tag to the VPC in your `template.yaml`. But what name to give your VPC?
+Add a `Name` tag to the VPC in your `network.yaml`. But what name to give your VPC?
 Each CloudFormation stack must have a unique name, so using the name you gave your stack is often a good choice for at least part of your resource name.
 The stack name, and other details about your stack, can be used in your template using Psuedo Parameters like `AWS::StackName`:
 
@@ -72,7 +72,7 @@ Update the template by running
 ```bash
 aws cloudformation update-stack \
     --stack-name $STACK \
-    --template-body file://template.yaml
+    --template-body file://network.yaml
 ```
 
 Resources:
@@ -121,7 +121,7 @@ If you want to test the input validation this command (using whatever you called
 ```bash
 aws cloudformation update-stack \
     --stack-name $STACK \
-    --template-body file://template.yaml \
+    --template-body file://network.yaml \
     --parameters ParameterKey=VpcCidr,ParameterValue=300.300.300.300/300
 ```
 
@@ -136,7 +136,7 @@ Resources:
 
 The order resources are specified in the template have no impact on the order they are deployed. Instead CloudFormation uses the references in the resource properties to build a dependency graph to determine the appropriate order. This also allows it to deploy some resources in parallel. 
 
-However, not all dependencies are explicit. Add the following resources to your `template.yaml`:
+However, not all dependencies are explicit. Add the following resources to your `network.yaml`:
 
 ```yaml
   InternetGateway:
@@ -270,32 +270,140 @@ Resources:
 - [Template Macros and CAPABILITY_AUTO_EXPAND](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-macros.html)
 - [Solution](solution/soln-07.yaml)
 
-## 8 Outputs and Exports
+## 8 Outputs
 
 Outputing resource identifiers is helpful to those who deployed a stack and to other stacks that depend on those resources.
 Outputs can also be exported so they can be referred to by any templates in the same region.
-Therefore, the name given to an export must be unique to the region.
 
-Add outputs and exports for the VPC and subnets, exporting the subnets identifiers as lists for the public, web and databases subnets.
+Add outputs an export the VPC and subnets, exporting the subnets identifiers as lists for the public, web and databases subnets.
+`!Join` is a useful intrinsic function for building a string, where you provide the separator and then the list of items like this:
 
-If you wanted to extract other properties from resources, you can use the `!GetAtt` intrinsic function.
-For example, review the [AWS::EC2::Subnet return values](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html#aws-resource-ec2-subnet-return-values) to see how `!GetAtt PublicASubnet.CidrBlock` will return a subnet CidrBlock.
+```yaml
+  PublicSubnetIds:
+    Value: !Join [ ",", [ !Ref PublicASubnet, !Ref PublicBSubnet ] ]
+```
+
+Update the template and then you should be able to run this to see the outputs:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name cfn-network \
+  --query Stacks[*].Outputs \
+  --output table
+```
 
 Resources:
 - [Outputs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html)
 - [Subnet Attributes](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html#aws-resource-ec2-subnet-return-values)
+- [!Join](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-join.html)
 - [Solution](solution/soln-08.yaml)
 
-## 9 - Master Template
+## 9 - Security Group Stack
+
+We can continue adding more resources to the template, however
+- there are [limits](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cloudformation-limits.html) on the size of a template file
+- as it gets larger with more and more resources it becomes harder to understand
+- you may have different people/teams responsible for different components, this gets harder to coordinate with a single template
+
+There are different strategies for how you can work with multiple templates that combine to represent a workload.
+One approach is to use multiple templates and use the exports to refer to resources in other stacks. 
+While this is approach reduces coupling to just the exports, there may still be implicit dependencies you have to manage.
+For example, writing a script to deploy the templates in the right order.
+
+Write a new template, `secgrp.yaml`, for the security groups, defining a security group for each tier:
+- The public tier should allow HTTP traffic from the internet
+- Application tier should allow HTTP traffic from the public tier
+- Database tier should allow traffic on port 3306 from the application tier
+
+Use `!ImportValue` to retrieve the VPC ID your existing stack, the name of the original stack could be a parameter.
+
+```yaml
+
+```
+
+Then create this new stack.
+
+```bash
+SECGRP=cfn-secgrp
+aws cloudformation create-stack \
+    --stack-name $SECGRP \
+    --template-body file://secgrp.yaml
+```
+
+Resources:
+- [CloudFormation limits](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cloudformation-limits.html)
+- [AWS::EC2::SecurityGroup](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-securitygroup.html)
+- [!ImportValue](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-importvalue.html)
 
 
 
 
-## 10 - Security Group and Conditions
 
 
-## 11 - Application Template
+---
+
+## 9 - Nested Stacks
 
 
-## 12 - Custom Resources
+One approach is to use [Nested Stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html),
+which works best when these templates are likely to be deployed together but in a particular order due to the dependencies between them.
+A parent template is used to create multiple nested stacks using other templates preloaded in an S3 bucket that CloudFormation.
+They may also next other templates.
+
+**Updates to the nested stacks should always be performed by updating the parent stack**. It will then determine which of
+the child templates have changes and perform updates on those stacks. 
+
+You will need to create a bucket and copy your template into that bucket.
+
+```bash
+ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+BUCKET=cfn-network-$ACCOUNT
+aws s3 mb s3://$BUCKET
+aws s3 cp network.yaml s3://$BUCKET/network.yaml
+```
+
+Create a new template, called `parent.yaml` and define a `AWS::CloudFormation::Stack` resource using your network
+template in the S3 bucket. Consider passing the bucket name to the template as a paramenter.
+
+The parent template may also output and export the outputs from the network stack. Exports can then be used
+by other stacks not in this nested stack. The `!GetAtt` intrinsic function can be used to extract other properties
+and return values from resources, in this case the outputs from the stack:
+
+```yaml
+  PublicSubnetIds:
+    Value: !GetAtt network.Outputs.PublicSubnetIds
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetIds"
+```
+
+You can see other attributes in the documentation for resources, for example [AWS::EC2::Subnet return values](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html#aws-resource-ec2-subnet-return-values).
+
+Create the parent stack to see it also create the nested stack.
+If you updated the template to use `ForEach` loops in Step 7, you will need to specify the `CAPABILITY_AUTO_EXPAND` capability here too.
+
+```bash
+aws cloudformation create-stack \
+  --stack-name cfn-network-nested \
+  --template-body file://parent.yaml \
+  --parameters ParameterKey=Bucket,ParameterValue=$BUCKET \
+  --capabilities CAPABILITY_AUTO_EXPAND
+```
+
+Carefully check the events if you observe the new stacks rolling back.
+
+Resources:
+
+- [Nested Stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html)
+- [AWS::CloudFormation::Stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cloudformation-stack.html)
+- [!GetAtt](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-getatt.html)
+- [Parent](solution/parent-01.yaml)
+
+
+
+## 11 - Conditions
+
+## 12 - Application Template
+
+
+## 13 - Custom Resources
 

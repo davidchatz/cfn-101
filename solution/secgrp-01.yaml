@@ -1,0 +1,78 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Secruity groups for network
+
+Parameters:
+
+  NetworkStack:
+    Type: String
+    Description: Network stack name
+    Default: cfn-network
+
+Resources:
+
+  PublicSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from Internet
+      VpcId:
+        Fn::ImportValue:
+          !Sub ${NetworkStack}-VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-Public-SecGrp
+
+  AppSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from Public Tier
+      VpcId:
+        Fn::ImportValue:
+          !Sub ${NetworkStack}-VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        SourceSecurityGroupId: !Ref PublicSecGrp
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-App-SecGrp
+
+  DatabaseSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow MySQL from App Tier
+      VpcId:
+        Fn::ImportValue:
+          !Sub ${NetworkStack}-VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId: !Ref AppSecGrp
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-Database-SecGrp
+
+Outputs:
+
+  PublicSecGrp:
+    Value: !Ref PublicSecGrp
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSecGrp
+
+  AppSecGrp:
+    Value: !Ref AppSecGrp
+    Export:
+      Name: !Sub ${AWS::StackName}-AppSecGrp
+
+  DatabaseSecGrp:
+    Value: !Ref DatabaseSecGrp
+    Export:
+      Name: !Sub ${AWS::StackName}-DatabaseSecGrp

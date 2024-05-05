@@ -101,7 +101,7 @@ Resources:
         Properties:
           VpcId: !Ref VPC
           AvailabilityZone: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !GetAZs ]
-          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !Cidr [ !Ref PublicCidr, 16, 8 ] ]
+          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], Fn::Cidr: [ !Ref PublicCidr, 16, 8 ] ]
           Tags:
             - Key: Name
               Value: !Sub "${AWS::StackName}-public-subnet-${Zone}"
@@ -114,7 +114,7 @@ Resources:
         Properties:
           VpcId: !Ref VPC
           AvailabilityZone: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !GetAZs ]
-          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !Cidr [ !Ref AppCidr, 16, 8 ] ]
+          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], Fn::Cidr: [ !Ref AppCidr, 16, 8 ] ]
           Tags:
             - Key: Name
               Value: !Sub "${AWS::StackName}-app-subnet-${Zone}"
@@ -127,7 +127,7 @@ Resources:
         Properties:
           VpcId: !Ref VPC
           AvailabilityZone: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !GetAZs ]
-          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !Cidr [ !Ref DatabaseCidr, 16, 8 ] ]
+          CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], Fn::Cidr: [ !Ref DatabaseCidr, 16, 8 ] ]
           Tags:
             - Key: Name
               Value: !Sub "${AWS::StackName}-database-subnet-${Zone}"
@@ -146,9 +146,8 @@ Resources:
             SubnetId: !Ref 
               Fn::Sub: "${Tier}${Zone}Subnet"
 
-# Generate outputs and exports for the VPC and subnets
-# Normally not all outputs should be exports, only export those you expect you use in other stacks
-# More complex use of conditions can be used to automatically include AZ C subnets in these lists
+# Generate outputs of the VPC and subnet resources for other stacks to use
+# TODO: More complex use of conditions can be used to automatically include AZ C subnets in these lists
 Outputs:
 
   VpcId:
