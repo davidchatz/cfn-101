@@ -384,9 +384,29 @@ function _copy_to_bucket()
 
 function _usage()
 {
-    echo "Usage: $0 <create|update|outputs|delete|all|##>"
+    echo "Automate deployment of cfn-101 stacks"
     echo ""
-    echo "       $0 ##      Update solution using template soln-##.yaml"
+    echo "Usage:"
+    echo ""
+    echo "$0 deploy    Deploy all stacks."
+    echo "$0 network   Deploy network stack and update templates."
+    echo "$0 secgrp    Deploy security group stack and update templates(1)."
+    echo "$0 bucket    Create bucket and copy all templates for nested stack."
+    echo "$0 parent    Deploy parent stack and update templates."
+    echo "$0 delete    Delete all stacks and bucket."
+    echo ""
+    echo "$0 output    Display outputs of all stacks."
+    echo "$0 status    Display status of all stacks."
+
+    echo ""
+    echo "$0 n1        Create network stack."
+    echo "$0 n[2-9]    Update network stack with network-0X.yaml."
+    echo "$0 s1        Create security group stack."
+    echo "$0 s2        Update security group stack with secgrp-02.yaml."
+    echo "$0 p1        Create parent stack."
+    echo "$0 p2        Update parent stack with parent-02.yaml."
+    echo ""
+    echo "(1) Assumes network stack already deployed."
     exit 1
 }
 

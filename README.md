@@ -298,6 +298,8 @@ Resources:
 - [!Join](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-join.html)
 - [Solution](solution/soln-08.yaml)
 
+---
+
 ## 9 - Security Group Stack
 
 We can continue adding more resources to the template, however
@@ -318,10 +320,12 @@ Write a new template, `secgrp.yaml`, for the security groups, defining a securit
 Use `!ImportValue` to retrieve the VPC ID your existing stack, the name of the original stack could be a parameter.
 
 ```yaml
-
+      VpcId:
+        Fn::ImportValue:
+          !Sub ${NetworkStack}-VpcId
 ```
 
-Then create this new stack.
+Then create this new stack:
 
 ```bash
 SECGRP=cfn-secgrp
@@ -334,26 +338,75 @@ Resources:
 - [CloudFormation limits](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cloudformation-limits.html)
 - [AWS::EC2::SecurityGroup](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-securitygroup.html)
 - [!ImportValue](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-importvalue.html)
+- [Solution](solution/secgrp-01.yaml)
 
+## 10 Conditions
 
+Some resources in our templates may be optional depending on what parameters are set.
+For example we may not want to add a rule for SSH to instances in the public subnet, or set a specific CIDR block for SSH.
+By adding a parameter that is an empty string by default, but can do a CIDR block:
 
+```yaml
+  SshCidr:
+    Type: String
+    Default: ""
+    Description: SSH CIDR or empty for no SSH access to public security group
+```
 
+We can then define a condition in the `Conditions` section of the template:
 
+```yaml
+Conditions:
+
+  # Is SSH CIDR set?
+  HasSshCidr: !Not [ !Equals [ !Ref SshCidr, "" ] ]
+```
+
+Then we define the resource we can specify the condition which must evaluate to true to provision the resource:
+
+```yaml
+  SshPublicIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasSshCidr
+    Properties:
+      ...
+```
+
+This update should return an error that there is nothing to update:
+
+```bash
+aws cloudformation update-stack \
+    --stack-name $SECGRP \
+    --template-body file://secgrp.yaml
+```
+
+Specify the SSH CIDR block to force the new ingress rule:
+
+```bash
+aws cloudformation update-stack \
+    --stack-name $SECGRP \
+    --template-body file://secgrp.yaml \
+    --parameters ParameterKey=SshCidr,ParameterValue=0.0.0.0/0
+```
+
+Resources:
+- [Conditions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-conditions.html)
+- [AWS::EC2::SecurityGroupIngress](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-securitygroupingress.html)
+- [Solution](solution/secgrp-02.yaml)
 
 ---
 
-## 9 - Nested Stacks
+## 11 - Nested Network Stack
 
-
-One approach is to use [Nested Stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html),
+Another approach to multiple stacks is to use [Nested Stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html),
 which works best when these templates are likely to be deployed together but in a particular order due to the dependencies between them.
 A parent template is used to create multiple nested stacks using other templates preloaded in an S3 bucket that CloudFormation.
-They may also next other templates.
+They may also nested stacks within a nested stack.
 
 **Updates to the nested stacks should always be performed by updating the parent stack**. It will then determine which of
 the child templates have changes and perform updates on those stacks. 
 
-You will need to create a bucket and copy your template into that bucket.
+You will need to create a bucket and copy your template into that bucket, maybe like this:
 
 ```bash
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
@@ -392,18 +445,26 @@ aws cloudformation create-stack \
 Carefully check the events if you observe the new stacks rolling back.
 
 Resources:
-
 - [Nested Stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html)
 - [AWS::CloudFormation::Stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cloudformation-stack.html)
 - [!GetAtt](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-getatt.html)
-- [Parent](solution/parent-01.yaml)
+- [Solution](solution/parent-01.yaml)
 
 
+## 12 - Nested Security Group Stack
 
-## 11 - Conditions
+Now add the security group template to this parent template.
+You can also optimise the security group template so that the VPC ID is a parameter rather than an import.
+Remember to copy your security group template to the S3 bucket, and update the parent template.
 
-## 12 - Application Template
+Resources:
+- [Solution - Parent](solution/parent-02.yaml)
+- [Solution - SecGrp](solution/secgrp-03.yaml)
+
+---
+
+## 13 - Application Template
 
 
-## 13 - Custom Resources
+## 14 - Custom Resources
 
