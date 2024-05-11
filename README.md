@@ -509,8 +509,35 @@ Resources:
 - [Solution - Parent](solution/parent-03.yaml)
 - [Solution - Instance](solution/web-01.yaml)
 
-## 14 - Custom Resources
+## 14 - Custom Resources (Advanced)
 
+There may be situations where you want to create a resource that cloudformation does not directly support.
+For example, we want to create an AMI from the webserver we launched, so that we can use this AMI in an
+AutoScaling Group.
+
+The SDKs support creating an AMI from an instance, so we can define a custom resource that runs a Lambda
+function to do other things in our environment.
+
+For this step you should go straight to the solution and read through the code to see what it does, this
+is not something you will be able to write yourself and quickly get it right. Plus mistakes can take a long
+time to complete while you wait for the customer resource to time out.
+
+1. The EC2 instance userdata uses a signal to CloudFormation so that CloudFormation knows when the 
+userdata has completed and an AMI can be generated. After the signal we can also shutdown the instance.
+2. A role is defined for a Lambda function to be able to create the AMI.
+3. A lambda function is defined that based on the incoming event can create or delete the AMI.
+4. A wait condition is defined to receive the signal from the EC2 instance, with a timeout of 10 minutes.
+5. A custom resource for the AMI is defined that calls the Lambda function passing in the instance ID.
+
+Resources:
+- [Solution - Parent](solution/parent-04.yaml)
+- [Solution - Instance](solution/web-02.yaml)
+- [cfn-signal](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-signal.html)
+- [AWS::IAM::Role](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html)
+- [CAPABILITY_IAM](https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_CreateStack.html)
+- [AWS::Lambda::Function](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-function.html)
+- [CreateImage](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/create_image.html)
+- [AWS::CloudFormation::WaitCondition](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cloudformation-waitcondition.html)
 
 ## 15 - What next?
 
