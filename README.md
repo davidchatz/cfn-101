@@ -3,6 +3,9 @@
 A hands-on CloudFormation work that quickly dives into intermediate features of CloudFormation,
 assuming you are already familiar with AWS VPCs and YAML formating.
 
+A [script](solution/deploy.sh) is provided that will deploy all of the solution templates in turn, for testing,
+and also delete the stacks when you are done.
+
 ## 0 - Setup
 
 Environment
@@ -502,6 +505,8 @@ systemctl start httpd
 systemctl enable httpd
 ```
 
+Remember to copy your web template to the S3 bucket, and update the parent template.
+
 Resources:
 - [AWS::EC2::Instance](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-instance.html)
 - [Dynamic references](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/dynamic-references.html)
@@ -524,10 +529,14 @@ time to complete while you wait for the customer resource to time out.
 
 1. The EC2 instance userdata uses a signal to CloudFormation so that CloudFormation knows when the 
 userdata has completed and an AMI can be generated. After the signal we can also shutdown the instance.
+Because the userdata has beend changed from the previous step, the instance is given a new logical
+name in the template, creating a new instance and deleting the instance from the previous step.
 2. A role is defined for a Lambda function to be able to create the AMI.
 3. A lambda function is defined that based on the incoming event can create or delete the AMI.
 4. A wait condition is defined to receive the signal from the EC2 instance, with a timeout of 10 minutes.
 5. A custom resource for the AMI is defined that calls the Lambda function passing in the instance ID.
+
+Remember to copy your web template to the S3 bucket, and update the parent template.
 
 Resources:
 - [Solution - Parent](solution/parent-04.yaml)
