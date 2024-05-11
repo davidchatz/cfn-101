@@ -1,0 +1,47 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Web server
+
+Parameters:
+
+  # Expect VPC ID to be passed in rather than import
+  PublicSubnets:
+    Type: CommaDelimitedList
+
+  PublicSecGrp:
+    Type: String
+
+  AmazonLinuxAMIID:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+
+Resources:
+
+  WebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AmazonLinuxAMIID
+      SubnetId: !Select [0, !Ref PublicSubnets]
+      SecurityGroupIds:
+        - !Ref PublicSecGrp
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-web-server"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd git
+          cd /var/www/html
+          git clone https://github.com/gabrielecirulli/2048.git .
+          systemctl start httpd
+          systemctl enable httpd

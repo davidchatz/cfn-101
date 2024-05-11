@@ -259,7 +259,7 @@ One of the limitations of `Fn::ForEach` is the order in which intrinsic function
 You will encounter this when trying to set the CIDR range for the templates. The blogs below suggest different approaches,
 the solution provided is another approach again, with a combination of parameters and mappings.
 
-It is left to the author to decide if the complexity of these loops is worth the lines of code saved.
+It is left to the author to decide if the complexity of these loops is worth the lines of code saved. In this example the length of the template has barly changed.
 
 Resources:
 - [Foreach Blog](https://aws.amazon.com/blogs/devops/exploring-fnforeach-and-fnfindinmap-enhancements-in-aws-cloudformation/)
@@ -453,11 +453,17 @@ Resources:
 
 ## 12 - Nested Security Group Stack
 
-Now add the security group template to this parent template.
-You can also optimise the security group template so that the VPC ID is a parameter rather than an import.
+Now reworl the security group template to be a nested template of the parent template,
+to illustrate another approach for multiple templates.
+
+Because this is now a nested template we can rely less on importing outputs and instead pass values
+in as parameters, in this example the VPC ID.
+
 Remember to copy your security group template to the S3 bucket, and update the parent template.
+You will also need to delete the previous stand-alone security stack.
 
 Resources:
+- [AWS::EC2::SecurityGroup](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-securitygroup.html)
 - [Solution - Parent](solution/parent-02.yaml)
 - [Solution - SecGrp](solution/secgrp-03.yaml)
 
@@ -465,6 +471,52 @@ Resources:
 
 ## 13 - Application Template
 
+***The follow steps will incur costs in your account. These can be minimised by delete the stack once complete.***
+
+In this step you are going to deploy a linux web server in the public subnet, defined in its own template `web.yaml`.
+
+In the past AMIs were hardcoded in the *Mapping* section of a template. AWS now provides the name of the latest AMIs
+in Systems Manager Parameter Store that you can fetch as parameters to your template:
+
+```yaml
+  AmazonLinuxAMIID:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: ...
+```
+
+The default value should be the parameter store path, you can obtain a list of the paths defined using this command:
+
+```bash
+aws ssm get-parameters-by-path --path "/aws/service/ami-amazon-linux-latest" --region us-east-1 --query 'Parameters[].{Name:Name}' --output text
+```
+
+We can install a website using user data:
+
+```bash
+#!/bin/bash
+yum update -y
+yum install -y httpd git
+cd /var/www/html
+git clone https://github.com/gabrielecirulli/2048.git .
+systemctl start httpd
+systemctl enable httpd
+```
+
+Resources:
+- [AWS::EC2::Instance](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-instance.html)
+- [Dynamic references](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/dynamic-references.html)
+- [Query for the latest Amazon Linux AMI IDs using AWS Systems Manager Parameter Store](https://aws.amazon.com/blogs/compute/query-for-the-latest-amazon-linux-ami-ids-using-aws-systems-manager-parameter-store/)
+- [Solution - Parent](solution/parent-03.yaml)
+- [Solution - Instance](solution/web-01.yaml)
 
 ## 14 - Custom Resources
 
+
+## 15 - What next?
+
+***All of these options will incur more costs in your account.***
+
+- NAT Gateways and routes for outgoing traffic from private subnets
+- Application load balancer in public subnets
+- AutoScaling Group for the web server using the AMI
+- RDS database deployed in database subnets

@@ -102,6 +102,7 @@ Resources:
           VpcId: !Ref VPC
           AvailabilityZone: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], !GetAZs ]
           CidrBlock: !Select [ !FindInMap [ AZ, !Ref Zone, Zone ], Fn::Cidr: [ !Ref PublicCidr, 16, 8 ] ]
+          MapPublicIpOnLaunch: true
           Tags:
             - Key: Name
               Value: !Sub "${AWS::StackName}-public-subnet-${Zone}"

@@ -324,7 +324,8 @@ function _apply()
         --stack-name $STACK \
         --template-body file://$TEMPLATE \
         --output text \
-        --capabilities CAPABILITY_AUTO_EXPAND $*
+        --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+        $*
 
     _status $STACK
 
@@ -404,7 +405,7 @@ function _usage()
     echo "$0 s1        Create security group stack."
     echo "$0 s2        Update security group stack with secgrp-02.yaml."
     echo "$0 p1        Create parent stack."
-    echo "$0 p2        Update parent stack with parent-02.yaml."
+    echo "$0 p[2-3]    Update parent stack with parent-0X.yaml."
     echo ""
     echo "(1) Assumes network stack already deployed."
     exit 1
@@ -465,6 +466,8 @@ case $1 in
         _copy_to_bucket
         _create $PARENT $PARENT_FIRST --parameters ParameterKey=Bucket,ParameterValue=$BUCKET
         _apply $PARENT parent-02.yaml --parameters ParameterKey=Bucket,ParameterValue=$BUCKET
+        _apply $PARENT parent-03.yaml --parameters ParameterKey=Bucket,ParameterValue=$BUCKET
+        _apply $PARENT parent-04.yaml --parameters ParameterKey=Bucket,ParameterValue=$BUCKET
         ;;
     
     n1)
@@ -484,10 +487,12 @@ case $1 in
         ;;
 
     p1)
+        _copy_to_bucket
         _create $PARENT $PARENT_FIRST --parameters ParameterKey=Bucket,ParameterValue=$BUCKET
         ;;
     
-    p[2-3])
+    p[2-4])
+        _copy_to_bucket
         _apply $PARENT parent-0${1:1}.yaml --parameters ParameterKey=Bucket,ParameterValue=$BUCKET
         ;;
 
